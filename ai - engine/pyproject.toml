@@ -1,0 +1,27 @@
+[project]
+name = "gramroute-ai-engine"
+version = "0.1.0"
+description = "Intelligent Rural Freight Optimization & Route Consolidation Engine"
+authors = [{ name = "GramRoute AI Engineering Team" }]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "scikit-learn>=1.6.0",
+    "ortools>=9.11.4210",
+    "numpy>=2.1.0",
+    "httpx>=0.28.0",
+    "python-dotenv>=1.0.1",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
