@@ -1,0 +1,10 @@
+[
+  "app/tests/test_optimization_engine.py::test_backhaul_deadhead_reduction",
+  "app/tests/test_optimization_engine.py::test_benchmarking_metrics",
+  "app/tests/test_optimization_engine.py::test_capacity_constraints_rejection",
+  "app/tests/test_optimization_engine.py::test_cost_allocation_budget_reconciliation",
+  "app/tests/test_optimization_engine.py::test_incompatible_cargo_isolation",
+  "app/tests/test_optimization_engine.py::test_pickup_before_delivery_precedence",
+  "app/tests/test_optimization_engine.py::test_reproducibility_hash",
+  "app/tests/test_optimization_engine.py::test_time_window_deadline_feasibility"
+]
