@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const optimization_controller_1 = require("../controllers/optimization.controller");
+const router = (0, express_1.Router)();
+router.post('/route', optimization_controller_1.optimizeRouteHandler);
+router.post('/backhaul', optimization_controller_1.evaluateBackhaulHandler);
+router.get('/audit-history', optimization_controller_1.getAuditHistoryHandler);
+router.get('/engine-status', optimization_controller_1.getEngineStatusHandler);
+exports.default = router;

@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const profile_controller_1 = require("../controllers/profile.controller");
+const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const profile_validator_1 = require("../validators/profile.validator");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.get('/me', profile_controller_1.getProfile);
+router.patch('/me', (0, validate_1.validate)({ body: profile_validator_1.updateProfileSchema }), profile_controller_1.updateProfile);
+router.post('/onboarding/farmer', (0, auth_1.authorize)('FARMER', 'ADMIN'), (0, validate_1.validate)({ body: profile_validator_1.farmerOnboardingSchema }), profile_controller_1.completeFarmerOnboarding);
+router.post('/onboarding/business', (0, auth_1.authorize)('BUSINESS', 'ADMIN'), (0, validate_1.validate)({ body: profile_validator_1.businessOnboardingSchema }), profile_controller_1.completeBusinessOnboarding);
+router.post('/onboarding/transporter', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), (0, validate_1.validate)({ body: profile_validator_1.transporterOnboardingSchema }), profile_controller_1.completeTransporterOnboarding);
+exports.default = router;

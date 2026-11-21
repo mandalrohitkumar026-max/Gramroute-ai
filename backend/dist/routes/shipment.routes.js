@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const shipment_controller_1 = require("../controllers/shipment.controller");
+const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const shipment_validator_1 = require("../validators/shipment.validator");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.post('/', (0, auth_1.authorize)('FARMER', 'BUSINESS', 'ADMIN'), (0, validate_1.validate)({ body: shipment_validator_1.createShipmentSchema }), shipment_controller_1.createShipment);
+router.get('/', shipment_controller_1.listShipments);
+router.get('/:id', shipment_controller_1.getShipmentById);
+router.patch('/:id', (0, auth_1.authorize)('FARMER', 'BUSINESS', 'ADMIN'), (0, validate_1.validate)({ body: shipment_validator_1.updateShipmentSchema }), shipment_controller_1.updateShipment);
+router.post('/:id/cancel', shipment_controller_1.cancelShipment);
+exports.default = router;

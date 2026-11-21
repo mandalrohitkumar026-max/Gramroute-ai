@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const booking_controller_1 = require("../controllers/booking.controller");
+const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const booking_validator_1 = require("../validators/booking.validator");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.post('/', (0, validate_1.validate)({ body: booking_validator_1.createBookingSchema }), booking_controller_1.createBooking);
+router.get('/', booking_controller_1.listBookings);
+router.get('/:id', booking_controller_1.getBookingById);
+router.post('/:id/respond', (0, validate_1.validate)({ body: booking_validator_1.respondBookingSchema }), booking_controller_1.respondToBooking);
+router.patch('/:id/status', (0, validate_1.validate)({ body: booking_validator_1.transitionBookingStatusSchema }), booking_controller_1.transitionBookingStatus);
+router.post('/:id/cancel', (0, validate_1.validate)({ body: booking_validator_1.cancelBookingSchema }), booking_controller_1.cancelBooking);
+exports.default = router;

@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const vehicle_controller_1 = require("../controllers/vehicle.controller");
+const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const vehicle_validator_1 = require("../validators/vehicle.validator");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.post('/', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), (0, validate_1.validate)({ body: vehicle_validator_1.createVehicleSchema }), vehicle_controller_1.createVehicle);
+router.get('/', vehicle_controller_1.listVehicles);
+router.get('/:id', vehicle_controller_1.getVehicleById);
+router.patch('/:id', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), (0, validate_1.validate)({ body: vehicle_validator_1.updateVehicleSchema }), vehicle_controller_1.updateVehicle);
+router.patch('/:id/availability', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), vehicle_controller_1.updateVehicleAvailability);
+router.post('/:id/documents', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), vehicle_controller_1.uploadVehicleDocument);
+router.delete('/:id', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), vehicle_controller_1.deleteVehicle);
+exports.default = router;

@@ -1,0 +1,22 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const trip_controller_1 = require("../controllers/trip.controller");
+const tracking_controller_1 = require("../controllers/tracking.controller");
+const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const trip_validator_1 = require("../validators/trip.validator");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.post('/', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), (0, validate_1.validate)({ body: trip_validator_1.createTripSchema }), trip_controller_1.createTrip);
+router.get('/', trip_controller_1.listTrips);
+router.get('/:id', trip_controller_1.getTripById);
+router.patch('/:id/status', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), (0, validate_1.validate)({ body: trip_validator_1.updateTripStatusSchema }), trip_controller_1.updateTripStatus);
+// --- Phase 6 Trip Execution State Machine Routes ---
+router.post('/:id/start', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), tracking_controller_1.startTrip);
+router.post('/:id/stops/:stopId/arrive', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), tracking_controller_1.arriveAtStop);
+router.post('/:id/stops/:stopId/confirm-pickup', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), tracking_controller_1.confirmPickupStop);
+router.post('/:id/report-delay', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), tracking_controller_1.reportTripDelay);
+router.post('/:id/stops/:stopId/confirm-delivery', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), tracking_controller_1.confirmDeliveryStop);
+router.post('/:id/complete', (0, auth_1.authorize)('TRANSPORTER', 'ADMIN'), tracking_controller_1.completeTrip);
+exports.default = router;

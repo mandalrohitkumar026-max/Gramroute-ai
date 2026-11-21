@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const match_controller_1 = require("../controllers/match.controller");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.get('/', match_controller_1.listMatches);
+router.get('/shipment/:shipmentId', match_controller_1.findMatchesForShipmentHandler);
+router.get('/:id', match_controller_1.getMatchById);
+router.post('/:id/accept', match_controller_1.acceptMatch);
+router.post('/:id/reject', match_controller_1.rejectMatch);
+exports.default = router;
