@@ -1,0 +1,647 @@
+// GramRoute AI — Prisma Schema Definition
+// Database Schema for Rural Freight Optimization, Shared Logistics & Geospatial Coordination
+// Dual support: MongoDB native ObjectId mapping and relational migration compatibility.
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+
+enum UserRole {
+  FARMER
+  BUSINESS
+  TRANSPORTER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  DEACTIVATED
+}
+
+enum VehicleType {
+  PICKUP_TRUCK
+  MINI_TRUCK
+  TRACTOR_TROLLEY
+  HEAVY_TRUCK
+  REFRIGERATED_VAN
+}
+
+enum VehicleVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum VehicleAvailabilityStatus {
+  AVAILABLE
+  ON_TRIP
+  MAINTENANCE
+  OFFLINE
+}
+
+enum PerishabilityCategory {
+  HIGHLY_PERISHABLE
+  MODERATE
+  NON_PERISHABLE
+}
+
+enum ShipmentStatus {
+  PENDING
+  LISTED
+  MATCHED
+  BOOKED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum TripStatus {
+  PLANNED
+  EN_ROUTE_PICKUP
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+enum TripStopType {
+  PICKUP
+  DROP
+  REST_STOP
+  CHECKPOINT
+}
+
+enum TripStopStatus {
+  PENDING
+  ARRIVED
+  COMPLETED
+  SKIPPED
+  DELAYED
+}
+
+enum BookingStatus {
+  REQUESTED
+  ACCEPTED_BY_TRANSPORTER
+  ACCEPTED_BY_CUSTOMER
+  CONFIRMED
+  TRIP_PREPARATION
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  ESCROWED
+  DISBURSED
+  REFUNDED
+}
+
+enum DisputeCategory {
+  DAMAGED_CARGO
+  EXCESSIVE_DELAY
+  UNAUTHORIZED_ROUTE
+  PRICE_OVERCHARGE
+  CANCELLATION_DISAGREEMENT
+  WEIGHT_DISCREPANCY
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_INVESTIGATION
+  EVIDENCE_REQUESTED
+  RESOLVED
+  DISMISSED
+}
+
+enum VerificationDocType {
+  AADHAAR
+  DRIVING_LICENSE
+  VEHICLE_RC
+  COMMERCIAL_PERMIT
+  VEHICLE_INSURANCE
+  POLLUTION_CERTIFICATE
+  APMC_MANDI_LICENSE
+  FPO_CERTIFICATE
+}
+
+enum TrackingEventType {
+  LOCATION_PING
+  TRIP_STARTED
+  ARRIVED_PICKUP
+  PICKUP_CONFIRMED
+  IN_TRANSIT_UPDATE
+  ARRIVED_DESTINATION
+  DELIVERY_OTP_CONFIRMED
+  POD_UPLOADED
+  ROUTE_DEVIATION_ALERT
+  DELAY_REPORTED
+  EMERGENCY_SOS
+}
+
+enum NotificationChannel {
+  IN_APP
+  SMS
+  WHATSAPP
+  PUSH
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// -----------------------------------------------------------------------------
+// COMPOSITE TYPES (MongoDB Embedded Documents)
+// -----------------------------------------------------------------------------
+
+type GeoPoint {
+  type        String   @default("Point")
+  coordinates Float[]  // [longitude, latitude]
+}
+
+type AddressDetails {
+  address           String
+  villageOrTown     String?
+  mandiOrMarketName String?
+  district          String
+  state             String
+  pincode           String
+  location          GeoPoint
+}
+
+type VehicleDimensions {
+  lengthM Float?
+  widthM  Float?
+  heightM Float?
+}
+
+type VehicleDocumentItem {
+  documentType       String
+  documentNumber     String?
+  documentUrl        String
+  verificationStatus VehicleVerificationStatus @default(PENDING)
+  uploadedAt         DateTime                  @default(now())
+}
+
+type RefreshTokenItem {
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+  ip        String?
+}
+
+type LastKnownTelemetry {
+  location       GeoPoint
+  speedKmh       Float?
+  accuracyMeters Float?
+  updatedAt      DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// DOMAIN MODELS (The 15 Core Entities)
+// -----------------------------------------------------------------------------
+
+/// 1. User: Core identity, RBAC authentication, credentials, and token management
+model User {
+  id                        String              @id @default(auto()) @map("_id") @db.ObjectId
+  phoneNumber               String              @unique
+  email                     String?             @unique
+  passwordHash              String
+  role                      UserRole            @default(FARMER)
+  status                    UserStatus          @default(ACTIVE)
+  isPhoneVerified           Boolean             @default(false)
+  isEmailVerified           Boolean             @default(false)
+  isIdentityVerified        Boolean             @default(false)
+  preferredLanguage         String              @default("hi")
+  lastLoginAt               DateTime?
+  failedLoginAttempts       Int                 @default(0)
+  lockUntil                 DateTime?
+  refreshTokens             RefreshTokenItem[]
+  passwordResetTokenHash    String?
+  passwordResetExpires      DateTime?
+  emailVerificationTokenHash String?
+  emailVerificationExpires  DateTime?
+  isDeleted                 Boolean             @default(false)
+  deletedAt                 DateTime?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  // Relations
+  profile                   Profile?
+  vehicles                  Vehicle[]           @relation("TransporterVehicles")
+  shipments                 Shipment[]          @relation("ShipperShipments")
+  trips                     Trip[]              @relation("TransporterTrips")
+  bookingsAsShipper         Booking[]           @relation("ShipperBookings")
+  bookingsAsTransporter     Booking[]           @relation("TransporterBookings")
+  notifications             Notification[]
+  verificationDocuments     VerificationDocument[]
+  ratingsGiven              Rating[]            @relation("RatingsGiven")
+  ratingsReceived           Rating[]            @relation("RatingsReceived")
+  disputesRaised            Dispute[]           @relation("DisputesRaised")
+  disputesResolved          Dispute[]           @relation("DisputesArbitrated")
+
+  @@map("users")
+}
+
+/// 2. Profile: User details, business persona, home location, and trust metrics
+model Profile {
+  id                String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String       @unique @db.ObjectId
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName          String
+  businessName      String?
+  avatarUrl         String?
+  bio               String?
+  address           String?
+  villageOrTown     String?
+  district          String
+  state             String
+  pincode           String?
+  location          GeoPoint
+  kycStatus         String       @default("UNVERIFIED") // UNVERIFIED, SUBMITTED, VERIFIED, REJECTED
+  kycSubmittedAt    DateTime?
+  kycVerifiedAt     DateTime?
+  ratingAverage     Float        @default(5.0)
+  totalRatingsCount Int          @default(0)
+  totalTripsCount   Int          @default(0)
+  totalDeliveries   Int          @default(0)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@map("profiles")
+}
+
+/// 3. Vehicle: Transporter asset fleet with dimensions, payload, and cold-chain status
+model Vehicle {
+  id                           String                    @id @default(auto()) @map("_id") @db.ObjectId
+  transporterId                String                    @db.ObjectId
+  transporter                  User                      @relation("TransporterVehicles", fields: [transporterId], references: [id])
+  registrationNumber           String                    @unique
+  vehicleType                  VehicleType               @default(MINI_TRUCK)
+  vehicleCategory              String?                   // OPEN_BODY, CLOSED_CONTAINER, TARPAULIN, REEFER
+  makeAndModel                 String
+  yearOfManufacture            Int
+  payloadCapacityKg            Float
+  volumetricCapacityCubicMeters Float
+  dimensions                   VehicleDimensions?
+  hasRefrigeration             Boolean                   @default(false)
+  hasTarpaulinCover            Boolean                   @default(true)
+  permitType                   String                    @default("STATE") // LOCAL, STATE, NATIONAL
+  insuranceValidUntil          DateTime?
+  fitnessCertValidUntil        DateTime?
+  verificationStatus           VehicleVerificationStatus @default(PENDING)
+  verificationNotes            String?
+  documents                    VehicleDocumentItem[]
+  isAvailable                  Boolean                   @default(true)
+  availabilityStatus           VehicleAvailabilityStatus @default(AVAILABLE)
+  operatingAreas               String[]
+  isActive                     Boolean                   @default(true)
+  isDeleted                    Boolean                   @default(false)
+  deletedAt                    DateTime?
+  currentLocation              LastKnownTelemetry?
+  createdAt                    DateTime                  @default(now())
+  updatedAt                    DateTime                  @updatedAt
+
+  // Relations
+  trips                        Trip[]
+
+  @@map("vehicles")
+}
+
+/// 4. Shipment: Agricultural cargo consignment with GIS origin/destination and deadlines
+model Shipment {
+  id                         String                @id @default(auto()) @map("_id") @db.ObjectId
+  shipperId                  String                @db.ObjectId
+  shipper                    User                  @relation("ShipperShipments", fields: [shipperId], references: [id])
+  cargoName                  String
+  cargoDescription           String?
+  cargoCategory              String                // Vegetables, Fruits, Grains, Dairy, Fertilizer
+  perishability              PerishabilityCategory @default(MODERATE)
+  isPerishable               Boolean               @default(false)
+  weightKg                   Float
+  volumeCubicMeters          Float                 @default(0.0)
+  numberOfPackages           Int                   @default(1)
+  packagingType              String                @default("Bags") // Bags, Crates, Boxes, Loose, Pallets
+  isStackable                Boolean               @default(true)
+  temperatureControlRequired Boolean               @default(false)
+  handlingRequirements       String[]
+  specialInstructions        String?
+  preferredTransportType     String?
+  origin                     AddressDetails
+  destination                AddressDetails
+  pickupWindowStart          DateTime
+  pickupWindowEnd            DateTime?
+  deliveryWindowStart        DateTime?
+  deliveryWindowEnd          DateTime
+  preferredPickupDate        DateTime?
+  deliveryDeadline           DateTime?
+  maxBudgetInr               Float
+  status                     ShipmentStatus        @default(PENDING)
+  specialHandlingNotes       String?
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+
+  // Relations
+  matches                    ShipmentMatch[]
+  bookings                   Booking[]
+  tripStops                  TripStop[]
+
+  @@map("shipments")
+}
+
+/// 5. ShipmentMatch: AI consolidation pairing scoring capacity utilization and detours
+model ShipmentMatch {
+  id                         String   @id @default(auto()) @map("_id") @db.ObjectId
+  shipmentId                 String   @db.ObjectId
+  shipment                   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  candidateTripId            String?  @db.ObjectId
+  candidateShipmentId        String?  @db.ObjectId
+  matchScore                 Float    // 0.0 to 100.0 explainable score
+  pickupDetourKm             Float    @default(0.0)
+  deliveryDetourKm           Float    @default(0.0)
+  totalDetourKm              Float    @default(0.0)
+  capacityUtilizationPercent Float
+  estimatedFarmerSavingsInr  Float
+  estimatedTransporterExtraInr Float
+  carbonSavedKg              Float    @default(0.0)
+  compatibilityFactors       Json?    // Detailed scoring breakdown
+  status                     String   @default("PROPOSED") // PROPOSED, ACCEPTED, REJECTED, EXPIRED
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@map("shipment_matches")
+}
+
+/// 6. Trip: Multi-stop scheduled vehicle route, capacity allocation, and earnings
+model Trip {
+  id                     String              @id @default(auto()) @map("_id") @db.ObjectId
+  transporterId          String              @db.ObjectId
+  transporter            User                @relation("TransporterTrips", fields: [transporterId], references: [id])
+  vehicleId              String              @db.ObjectId
+  vehicle                Vehicle             @relation(fields: [vehicleId], references: [id])
+  routeSummary           String?
+  originAddress          String
+  originDistrict         String
+  originState            String
+  originLocation         GeoPoint?
+  destinationAddress     String
+  destinationDistrict    String
+  destinationState       String
+  destinationLocation    GeoPoint?
+  departureTime          DateTime
+  estimatedArrivalTime   DateTime
+  actualStartTime        DateTime?
+  actualCompletionTime   DateTime?
+  totalDistanceKm        Float
+  totalEstimatedFuelCost Float
+  totalAgreedEarnings    Float               @default(0.0)
+  allocatedWeightKg      Float               @default(0.0)
+  remainingCapacityKg    Float
+  remainingVolumeCbm     Float               @default(0.0)
+  isPublished            Boolean             @default(true)
+  operatingCorridors     String[]
+  status                 TripStatus          @default(PLANNED)
+  optimizedPolyline      String?
+  isBackhaulTrip         Boolean             @default(false)
+  lastKnownLocation      LastKnownTelemetry?
+  reportedDelayMinutes   Int                 @default(0)
+  delayReason            String?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  // Relations
+  stops                  TripStop[]
+  bookings               Booking[]
+  trackingEvents         TrackingEvent[]
+  costAllocations        CostAllocation[]
+
+  @@map("trips")
+}
+
+/// 7. TripStop: Sequential pickup, drop-off, and rest waypoints along an active trip
+model TripStop {
+  id                   String         @id @default(auto()) @map("_id") @db.ObjectId
+  tripId               String         @db.ObjectId
+  trip                 Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  shipmentId           String?        @db.ObjectId
+  shipment             Shipment?      @relation(fields: [shipmentId], references: [id])
+  stopSequenceOrder    Int
+  stopType             TripStopType   @default(PICKUP)
+  locationAddress      String
+  locationCoordinates  GeoPoint
+  contactPersonName    String?
+  contactPhoneNumber   String?
+  scheduledArrivalTime DateTime
+  actualArrivalTime    DateTime?
+  scheduledDepartureTime DateTime?
+  actualDepartureTime  DateTime?
+  stopDwellMinutes     Int            @default(15)
+  weightHandledKg      Float          @default(0.0)
+  otpVerificationCode  String?
+  status               TripStopStatus @default(PENDING)
+  notes                String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  @@map("trip_stops")
+}
+
+/// 8. Booking: Formal freight contract binding consignor and transporter with dual OTP
+model Booking {
+  id                   String         @id @default(auto()) @map("_id") @db.ObjectId
+  bookingReference     String         @unique // e.g. BK-202611-ABCD
+  shipmentId           String         @db.ObjectId
+  shipment             Shipment       @relation(fields: [shipmentId], references: [id])
+  tripId               String         @db.ObjectId
+  trip                 Trip           @relation(fields: [tripId], references: [id])
+  shipperId            String         @db.ObjectId
+  shipper              User           @relation("ShipperBookings", fields: [shipperId], references: [id])
+  transporterId        String         @db.ObjectId
+  transporter          User           @relation("TransporterBookings", fields: [transporterId], references: [id])
+  totalAgreedAmountInr Float
+  allocatedWeightKg    Float
+  allocatedVolumeCbm   Float?
+  pickupOtp            String         // 4 to 6 digit hand-off verification
+  deliveryOtp          String         // Consignee proof-of-delivery OTP
+  bookingStatus        BookingStatus  @default(REQUESTED)
+  paymentStatus        PaymentStatus  @default(PENDING)
+  acceptedByCustomerAt DateTime?
+  acceptedByTransporterAt DateTime?
+  pickupConfirmedAt    DateTime?
+  deliveryConfirmedAt  DateTime?
+  cancellationReason   String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  // Relations
+  costAllocation       CostAllocation?
+  paymentRecords       PaymentRecord[]
+  disputes             Dispute[]
+  ratings              Rating[]
+
+  @@map("bookings")
+}
+
+/// 9. CostAllocation: Transparent ton-km and Shapley-based freight cost decomposition
+model CostAllocation {
+  id                        String   @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId                 String   @unique @db.ObjectId
+  booking                   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  tripId                    String   @db.ObjectId
+  trip                      Trip     @relation(fields: [tripId], references: [id])
+  baseHaulageCostInr        Float
+  fuelSurchargeInr          Float    @default(0.0)
+  tollChargesInr            Float    @default(0.0)
+  stopHandlingFeeInr        Float    @default(0.0)
+  distanceKm                Float
+  tonKmCost                 Float
+  soloTripBenchmarkInr      Float    // Baseline solo trip price
+  consolidationDiscountInr  Float    // Savings passed to farmer
+  platformFeeInr            Float    @default(0.0)
+  finalShipperPayableInr    Float
+  transporterNetReceivableInr Float
+  isPaid                    Boolean  @default(false)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@map("cost_allocations")
+}
+
+/// 10. TrackingEvent: Telemetry log, GPS tracking trail, and geofence milestones
+model TrackingEvent {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  tripId          String            @db.ObjectId
+  trip            Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  shipmentId      String?           @db.ObjectId
+  eventType       TrackingEventType @default(LOCATION_PING)
+  location        GeoPoint
+  speedKmh        Float?
+  bearingDegrees  Float?
+  accuracyMeters  Float?
+  batteryLevel    Float?
+  eventPayload    Json?             // Additional metadata (photos, OTP flags)
+  recordedAt      DateTime          @default(now())
+
+  @@map("tracking_events")
+}
+
+/// 11. Notification: Multi-channel alert dispatch (In-App, SMS, WhatsApp) with priorities
+model Notification {
+  id          String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String               @db.ObjectId
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  message     String
+  channel     NotificationChannel  @default(IN_APP)
+  priority    NotificationPriority @default(MEDIUM)
+  linkUrl     String?
+  entityType  String?              // BOOKING, TRIP, SHIPMENT, DISPUTE
+  entityId    String?
+  isRead      Boolean              @default(false)
+  readAt      DateTime?
+  sentAt      DateTime             @default(now())
+  createdAt   DateTime             @default(now())
+
+  @@map("notifications")
+}
+
+/// 12. Rating: Bilateral mutual feedback (1-5 stars) on timeliness, cargo care, trust
+model Rating {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId          String   @db.ObjectId
+  booking            Booking  @relation(fields: [bookingId], references: [id])
+  ratedByUserId      String   @db.ObjectId
+  ratedByUser        User     @relation("RatingsGiven", fields: [ratedByUserId], references: [id])
+  targetUserId       String   @db.ObjectId
+  targetUser         User     @relation("RatingsReceived", fields: [targetUserId], references: [id])
+  overallRatingStars Int      // 1 to 5
+  punctualityStars   Int?
+  cargoCareStars     Int?
+  communicationStars Int?
+  reviewText         String?
+  createdAt          DateTime @default(now())
+
+  @@map("ratings")
+}
+
+/// 13. Dispute: Structured arbitration mechanism for damaged cargo, delays, or fraud
+model Dispute {
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  disputeNumber    String          @unique // e.g. DSP-202611-1001
+  bookingId        String          @db.ObjectId
+  booking          Booking         @relation(fields: [bookingId], references: [id])
+  raisedByUserId   String          @db.ObjectId
+  raisedByUser     User            @relation("DisputesRaised", fields: [raisedByUserId], references: [id])
+  category         DisputeCategory @default(DAMAGED_CARGO)
+  description      String
+  evidencePhotoUrls String[]
+  claimAmountInr   Float           @default(0.0)
+  refundedAmountInr Float          @default(0.0)
+  status           DisputeStatus   @default(OPEN)
+  arbitratedByUserId String?       @db.ObjectId
+  arbitrator       User?           @relation("DisputesArbitrated", fields: [arbitratedByUserId], references: [id])
+  resolutionNotes  String?
+  resolvedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@map("disputes")
+}
+
+/// 14. PaymentRecord: Escrow double-entry ledger tracking disbursements and platform fees
+model PaymentRecord {
+  id                    String        @id @default(auto()) @map("_id") @db.ObjectId
+  transactionReference  String        @unique // e.g. TXN-202611-98765
+  bookingId             String        @db.ObjectId
+  booking               Booking       @relation(fields: [bookingId], references: [id])
+  grossAmountInr        Float
+  platformFeeInr        Float         @default(0.0)
+  gstTaxesInr           Float         @default(0.0)
+  netDisbursedAmountInr Float
+  paymentMethod         String        @default("UPI") // UPI, BANK_TRANSFER, ESCROW, CASH
+  gatewayTransactionId  String?
+  status                PaymentStatus @default(PENDING)
+  disbursedAt           DateTime?
+  notes                 String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@map("payment_records")
+}
+
+/// 15. VerificationDocument: KYC uploads (Aadhaar, Commercial DL, Vehicle RC, Mandi License)
+model VerificationDocument {
+  id                       String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId                   String              @db.ObjectId
+  user                     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType             VerificationDocType @default(AADHAAR)
+  documentIdentifierNumber String
+  documentFrontImageUrl    String
+  documentBackImageUrl     String?
+  verificationStatus       String              @default("PENDING") // PENDING, VERIFIED, REJECTED
+  rejectionReason          String?
+  reviewedByUserId         String?             @db.ObjectId
+  reviewedAt               DateTime?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+
+  @@map("verification_documents")
+}
