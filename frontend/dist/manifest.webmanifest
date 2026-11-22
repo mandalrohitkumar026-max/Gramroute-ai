@@ -1,0 +1,22 @@
+{
+  "short_name": "GramRoute AI",
+  "name": "GramRoute AI — Rural Freight & Shared Logistics",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192' fill='%231E5631'><rect width='192' height='192' rx='36' fill='%231E5631'/><path d='M96 32L32 64l64 32 64-32-64-32zM32 112l64 32 64-32M32 88l64 32 64-32' stroke='white' stroke-width='10' fill='none'/></svg>",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%231E5631'><rect width='512' height='512' rx='96' fill='%231E5631'/><path d='M256 96L96 176l160 80 160-80-160-80zM96 296l160 80 160-80M96 236l160 80 160-80' stroke='white' stroke-width='24' fill='none'/></svg>",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#F8FAF8",
+  "theme_color": "#1E5631",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/"
+}
