@@ -1,0 +1,35 @@
+{
+  "name": "gramroute-ai",
+  "version": "0.1.0",
+  "description": "Intelligent Rural Freight Optimization & Shared Logistics Network",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=backend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:ai": "powershell -Command \"cd ai-engine; python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload\"",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "test": "npm run test --workspace=backend && npm run test --workspace=frontend",
+    "test:backend": "npm run test --workspace=backend",
+    "test:frontend": "npm run test --workspace=frontend",
+    "test:ai": "powershell -Command \"cd ai-engine; pytest app/tests\"",
+    "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend"
+  },
+  "keywords": [
+    "logistics",
+    "rural-freight",
+    "route-optimization",
+    "or-tools",
+    "shared-freight",
+    "farmers",
+    "fpo"
+  ],
+  "author": "GramRoute AI Engineering Team",
+  "license": "UNLICENSED"
+}
